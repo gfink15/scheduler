@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% macro bucket(title, rows, kind='due') %}
+  {% if rows %}
+  <section class="bucket bucket--{{ kind }}">
+    <h2>{{ title }} <span class="count">{{ rows|length }}</span></h2>
+    <ul class="rows">
+      {% for o in rows %}
+      <li class="row" data-uuid="{{ o.uuid }}">
+        <div class="row__main">
+          <span class="course">{{ o.item.course or '—' }}</span>
+          <span class="name">{{ o.item.name }}</span>
+        </div>
+        <div class="row__meta">
+          {% if o.due_at %}<span>due {{ o.due_at.strftime('%b %d, %H:%M') }}</span>{% endif %}
+          {% if o.start_at %}<span>{{ o.start_at.strftime('%H:%M') }}</span>{% endif %}
+          {% if o.recommended_minutes %}<span class="rec">{{ o.recommended_minutes|minutes }} today</span>{% endif %}
+          <span class="pri pri--{{ priority_name(o.priority) }}">{{ priority_name(o.priority) }}</span>
+        </div>
+        <button class="done" data-action="done">done</button>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<form class="quickadd" method="post" action="{{ url_for('main.add_item') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="shorthand" autofocus autocomplete="off" spellcheck="false"
+         placeholder="n='Test 1' c='BIO110' d='2026-09-18 11:59pm' e='2h' p='3d' y='high'">
+  <button type="submit">add</button>
+</form>
+
+{% if data %}
+<p class="summary">Suggested today: <strong>{{ data.total_recommended_minutes|minutes }}</strong></p>
+
+{{ bucket('Overdue', data.overdue, 'overdue') }}
+{{ bucket('Due today', data.due_today, 'today') }}
+{{ bucket('Scheduled today', data.scheduled_today, 'sched') }}
+{{ bucket('Start today', data.start_today, 'start') }}
+{{ bucket('Continue', data.continue_work, 'cont') }}
+{{ bucket('Upcoming', data.upcoming, 'soon') }}
+{% endif %}
+
+<script>
+document.querySelectorAll('[data-action="done"]').forEach(btn => {
+  btn.addEventListener('click', async e => {
+    const row = e.target.closest('.row');
+    const res = await fetch(`/api/occurrences/${row.dataset.uuid}/done`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token() }}'}
+    });
+    if (res.ok) row.remove();
+  });
+});
+</script>
+{% endblock %}

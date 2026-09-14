@@ -1,0 +1,16 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+WTForms==3.1.2
+SQLAlchemy==2.0.35
+alembic==1.13.3
+psycopg[binary]==3.2.3
+python-dotenv==1.0.1
+gunicorn==23.0.0
+croniter==5.0.1
+python-dateutil==2.9.0.post0
+icalendar==6.0.1
+APScheduler==3.10.4
+email-validator==2.2.0
