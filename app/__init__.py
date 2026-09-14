@@ -1,11 +1,18 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env BEFORE any config class body reads os.environ
+load_dotenv(BASE_DIR / ".env")
+
 import click
 from flask import Flask
-from dotenv import load_dotenv
 
 from app.config import get_config
 from app.extensions import db, migrate, login_manager, csrf
-
-load_dotenv()
 
 
 def create_app(config_object=None):

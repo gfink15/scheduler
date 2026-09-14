@@ -64,7 +64,7 @@ def build_dashboard(user_id: int, tzname: str, lookahead_days: int = 7) -> dict:
             .filter(Occurrence.user_id == user_id,
                     Occurrence.status.in_(("planned", "active")),
                     Occurrence.occurrence_date <= (today + timedelta(days=lookahead_days)))
-            .order_by(Occurrence.due_at.asc().nullslast())
+            .order_by(Occurrence.due_at.asc().nulls_last())
             .all())
 
     buckets = {k: [] for k in ("overdue", "due_today", "scheduled_today",

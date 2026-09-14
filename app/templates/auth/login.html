@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="card card--narrow">
+  <h1>Sign in</h1>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <label>{{ form.username.label }} {{ form.username(autofocus=true) }}</label>
+    <label>{{ form.password.label }} {{ form.password() }}</label>
+    <label class="inline">{{ form.remember() }} {{ form.remember.label.text }}</label>
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="muted">No account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+</div>
+{% endblock %}
