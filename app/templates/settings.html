@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Calendar subscription</h1>
+  <p class="muted">
+    In Apple Calendar: <strong>File → New Calendar Subscription</strong>, paste this URL,
+    set auto-refresh to every hour.
+  </p>
+  <input class="feedurl" value="{{ feed_url }}" readonly onclick="this.select()">
+  <p class="muted">
+    Anyone with this URL can read your assignment titles and due dates. Don't share it.
+  </p>
+  <form method="post" action="{{ url_for('main.rotate_feed') }}"
+        onsubmit="return confirm('Rotate? You will have to re-subscribe.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="danger">rotate token</button>
+  </form>
+</div>
+{% endblock %}

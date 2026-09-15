@@ -157,3 +157,9 @@ button {
   font-family: ui-monospace, Menlo, monospace; font-size: 12px;
 }
 button.danger { background: var(--red); color: #2a0d0d; }
+
+.feedurl {
+  width: 100%; padding: 9px 11px; border-radius: 7px; margin-bottom: 10px;
+  border: 1px solid var(--line); background: #0c0e13; color: var(--accent);
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+}

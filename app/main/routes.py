@@ -8,6 +8,10 @@ from app.shorthand import ShorthandError, parse, FIELD_NAMES
 from app.main.services import update_item_from_shorthand
 from app.models import Item
 
+from flask import Response, abort
+from app.integrations.apple_ics import build_feed
+from app.models import UserIntegration
+
 bp = Blueprint("main", __name__)
 
 
@@ -81,3 +85,33 @@ def items():
     rows = (Item.query.filter_by(user_id=current_user.id)
             .order_by(Item.course, Item.name).all())
     return render_template("items.html", items=rows)
+
+@bp.route("/calendar/feed/<token>.ics")
+def ics_feed(token):
+    integration = UserIntegration.query.filter_by(apple_feed_token=token).first_or_404()
+    if not integration.user.is_active:
+        abort(404)
+    body = build_feed(integration)
+    return Response(body, mimetype="text/calendar", headers={
+        "Content-Disposition": 'inline; filename="assignments.ics"',
+        "Cache-Control": "private, max-age=900",
+        "X-Robots-Tag": "noindex, nofollow",
+    })
+
+@bp.route("/settings")
+@login_required
+def settings():
+    integ = current_user.integrations
+    feed_url = url_for("main.ics_feed", token=integ.apple_feed_token, _external=True)
+    return render_template("settings.html", integ=integ, feed_url=feed_url)
+
+
+@bp.post("/settings/rotate-feed")
+@login_required
+def rotate_feed():
+    import secrets
+    from app.extensions import db
+    current_user.integrations.apple_feed_token = secrets.token_urlsafe(32)
+    db.session.commit()
+    flash("Feed URL rotated — re-subscribe in Apple Calendar.", "warning")
+    return redirect(url_for("main.settings"))

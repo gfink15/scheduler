@@ -33,6 +33,9 @@ def create_app(config_object=None):
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    from app.main.routes import ics_feed
+    csrf.exempt(ics_feed)
+
     _register_cli(app)
     _register_template_helpers(app)
     return app
