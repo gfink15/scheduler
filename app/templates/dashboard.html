@@ -15,10 +15,17 @@
         <div class="row__meta">
           {% if o.due_at %}<span>due {{ o.due_at.strftime('%b %d, %H:%M') }}</span>{% endif %}
           {% if o.start_at %}<span>{{ o.start_at.strftime('%H:%M') }}</span>{% endif %}
-          {% if o.recommended_minutes %}<span class="rec">{{ o.recommended_minutes|minutes }} today</span>{% endif %}
+          {% if o.rec_today %}<span class="rec">{{ o.rec_today|minutes }} today</span>{% endif %}
           <span class="pri pri--{{ priority_name(o.priority) }}">{{ priority_name(o.priority) }}</span>
         </div>
-        <button class="done" data-action="done">done</button>
+        <div class="row__acts">
+          <input class="logbox" placeholder="30m" size="4" aria-label="log time">
+          <button class="done" data-action="log">log</button>
+          <button class="done" data-action="done">done</button>
+        </div>
+        {% if o.completion_percent %}
+        <div class="bar"><span style="width: {{ o.completion_percent }}%"></span></div>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -54,6 +61,21 @@ document.querySelectorAll('[data-action="done"]').forEach(btn => {
       headers: {'X-CSRFToken': '{{ csrf_token() }}'}
     });
     if (res.ok) row.remove();
+  });
+});
+document.querySelectorAll('[data-action="log"]').forEach(btn => {
+  btn.addEventListener('click', async e => {
+    const row = e.target.closest('.row');
+    const box = row.querySelector('.logbox');
+    const res = await fetch(`/api/occurrences/${row.dataset.uuid}/log`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+      body: JSON.stringify({duration: box.value || '30m'})
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.error); return; }
+    if (data.status === 'done') row.remove();
+    else location.reload();
   });
 });
 </script>

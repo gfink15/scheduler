@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Items{% endblock %}
+{% block content %}
+<h1>All items</h1>
+<table class="items">
+  <thead><tr><th>type</th><th>course</th><th>name</th><th>due / repeats</th>
+             <th>est</th><th>occ</th><th></th></tr></thead>
+  <tbody>
+  {% for item in items %}
+    <tr>
+      <td class="muted">{{ item.item_type }}</td>
+      <td class="course">{{ item.course or '—' }}</td>
+      <td>{{ item.name }}</td>
+      <td class="muted">
+        {% if item.recurrence_raw and item.recurrence_kind != 'none' %}
+          {{ item.recurrence_raw }}
+        {% elif item.due_at %}{{ item.due_at.strftime('%b %d, %H:%M') }}
+        {% else %}—{% endif %}
+      </td>
+      <td class="muted">{{ item.estimated_minutes|minutes }}</td>
+      <td class="muted">{{ item.occurrences.count() }}</td>
+      <td>
+        <details>
+          <summary>edit</summary>
+          <form method="post" action="{{ url_for('main.edit_item', uuid=item.uuid) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="shorthand" size="46" placeholder="only fields you want changed"
+                   value="{{ item.raw_input or '' }}">
+            <button type="submit">save</button>
+          </form>
+          <form method="post" action="{{ url_for('main.delete_item', uuid=item.uuid) }}"
+                onsubmit="return confirm('Delete {{ item.name }} and all its occurrences?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="danger">delete</button>
+          </form>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -14,12 +14,14 @@ def _round15(minutes: float) -> int:
     return int(math.ceil(minutes / 15.0) * 15)
 
 
-def recommended_minutes(occ: Occurrence, now_utc: datetime) -> int | None:
+def recommended_minutes(occ, now_utc: datetime, tz: ZoneInfo) -> int | None:
     remaining = occ.remaining_minutes
     if not remaining:
         return None
     if occ.due_at:
-        days = max(1, (occ.due_at.date() - now_utc.date()).days + 1)
+        today = now_utc.astimezone(tz).date()
+        due_day = occ.due_at.astimezone(tz).date()
+        days = max(1, (due_day - today).days + 1)
     else:
         days = 1
     raw = remaining / days
@@ -58,6 +60,7 @@ def build_dashboard(user_id: int, tzname: str, lookahead_days: int = 7) -> dict:
     now_utc = datetime.now(dt_timezone.utc)
     today = datetime.now(ZoneInfo(tzname)).date()
     horizon = now_utc + timedelta(days=lookahead_days)
+    tz = ZoneInfo(tzname)
 
     rows = (Occurrence.query
             .join(Item)
@@ -71,7 +74,7 @@ def build_dashboard(user_id: int, tzname: str, lookahead_days: int = 7) -> dict:
                                "start_today", "continue_work", "upcoming")}
 
     for occ in rows:
-        occ.recommended_minutes = recommended_minutes(occ, now_utc)
+        occ.rec_today = recommended_minutes(occ, now_utc, tz)
         placed = False
 
         if occ.due_at and occ.due_at < now_utc:

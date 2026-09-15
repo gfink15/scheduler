@@ -12,7 +12,7 @@
 <label class="toggle">
   <input type="checkbox" id="prep-toggle" checked> show prep-start markers
 </label>
-
+<div id="cal-banner" class="flash flash--warning" hidden></div>
 <div id="calendar"></div>
 
 <aside id="detail" class="detail" hidden>
@@ -48,8 +48,26 @@ const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
     const qs = new URLSearchParams({
       start: info.startStr, end: info.endStr, prep
     });
-    fetch('/api/calendar/events?' + qs)
-      .then(r => r.json()).then(success).catch(failure);
+    fetch('/api/calendar/events?' + qs, { credentials: 'same-origin' })
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Expected JSON, got ' + ct + ' (session expired?)');
+        }
+        return r.json();
+      })
+      .then(rows => {
+        console.log(`[calendar] ${rows.length} events for ${info.startStr}..${info.endStr}`);
+        if (!rows.length) banner('No events in this range. Try `flask generate`.');
+        else banner(null);
+        success(rows);
+      })
+      .catch(err => {
+        console.error('[calendar] fetch failed', err);
+        banner('Could not load events: ' + err.message);
+        failure(err);
+      });
   },
   eventClick: (info) => {
     const p = info.event.extendedProps;
@@ -61,6 +79,7 @@ const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
       <dt>priority</dt><dd>${p.priority}</dd>
       <dt>state</dt><dd>${p.state}</dd>
       <dt>remaining</dt><dd>${p.remaining ? p.remaining + 'm' : '—'}</dd>
+      <dt>progress</dt><dd>${p.percent || 0}%</dd>
       ${p.description ? `<dt>notes</dt><dd>${p.description}</dd>` : ''}
       ${p.url ? `<dt>link</dt><dd><a href="${p.url}" target="_blank">open</a></dd>` : ''}`;
     detail.hidden = false;
@@ -84,5 +103,11 @@ detail.querySelectorAll('[data-act]').forEach(btn => {
     if (res.ok) { detail.hidden = true; cal.refetchEvents(); }
   });
 });
+function banner(msg) {
+  const el = document.getElementById('cal-banner');
+  if (!msg) { el.hidden = true; return; }
+  el.textContent = msg;
+  el.hidden = false;
+}
 </script>
 {% endblock %}

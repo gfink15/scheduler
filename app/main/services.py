@@ -3,7 +3,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from app.extensions import db
-from app.models import User, UserSettings, UserIntegration, Item, ItemTag
+from app.models import User, UserSettings, UserIntegration, Item, ItemTag, Occurrence
 from app.planner.generation import generate_for_item
 from app.shorthand import parse
 
@@ -66,6 +66,56 @@ def create_item_from_shorthand(user: User, raw: str) -> Item:
 
     for tag in entry.tags:
         db.session.add(ItemTag(item_id=item.id, tag=tag))
+
+    generate_for_item(item)
+    db.session.commit()
+    return item
+
+def update_item_from_shorthand(user: User, item: Item, raw: str) -> Item:
+    """Apply shorthand to an existing item. Only supplied fields change."""
+    from app.shorthand.parser import _tokenize
+    settings = user.settings
+    tzname = settings.timezone if settings else user.timezone
+    default_due = settings.default_due_time if settings else "23:59"
+
+    entry = parse(raw, default_due_time=default_due)
+    supplied = {k for k, _ in _tokenize(raw)[0]}
+
+    field_map = {
+        "n": ("name", entry.name),
+        "c": ("course", entry.course),
+        "x": ("description", entry.description),
+        "y": ("priority", entry.priority),
+        "s": ("status", entry.status),
+        "u": ("url", entry.url),
+        "l": ("label", entry.label),
+        "e": ("estimated_minutes", entry.estimated_minutes),
+        "p": ("prep_minutes", entry.prep_minutes),
+        "k": ("chunk_minutes", entry.chunk_minutes),
+        "w": ("weight_value", entry.weight_value),
+        "d": ("due_at", _localize(entry.due_at, tzname)),
+        "a": ("available_at", _localize(entry.available_at, tzname)),
+        "b": ("recurrence_start_at", _localize(entry.recurrence_start_at, tzname)),
+        "z": ("recurrence_end_at", _localize(entry.recurrence_end_at, tzname)),
+    }
+    for key, (attr, value) in field_map.items():
+        if key in supplied:
+            setattr(item, attr, value)
+
+    if "r" in supplied and entry.recurrence:
+        item.recurrence_raw = entry.recurrence.raw
+        item.recurrence_kind = entry.recurrence.kind
+        # recurrence changed: drop open generated occurrences and rebuild
+        item.occurrences.filter(
+            Occurrence.is_generated.is_(True),
+            Occurrence.status.in_(("planned", "active")),
+            Occurrence.manual_override.is_(False),
+        ).delete(synchronize_session=False)
+
+    if "t" in supplied:
+        ItemTag.query.filter_by(item_id=item.id).delete()
+        for tag in entry.tags:
+            db.session.add(ItemTag(item_id=item.id, tag=tag))
 
     generate_for_item(item)
     db.session.commit()
