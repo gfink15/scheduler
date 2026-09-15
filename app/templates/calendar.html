@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+
+{% block content %}
+<form class="quickadd" method="post" action="{{ url_for('main.add_item') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="shorthand" autocomplete="off" spellcheck="false"
+         placeholder="n='Test 1' c='BIO110' d='2026-09-18 11:59pm' e='2h' p='3d'">
+  <button type="submit">add</button>
+</form>
+
+<label class="toggle">
+  <input type="checkbox" id="prep-toggle" checked> show prep-start markers
+</label>
+
+<div id="calendar"></div>
+
+<aside id="detail" class="detail" hidden>
+  <button class="detail__close" type="button">&times;</button>
+  <h3 id="detail-title"></h3>
+  <dl id="detail-body"></dl>
+  <div class="detail__actions">
+    <button type="button" data-act="done">mark done</button>
+    <button type="button" data-act="skip">skip</button>
+  </div>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+const CSRF = '{{ csrf_token() }}';
+const detail = document.getElementById('detail');
+let current = null;
+
+const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+  initialView: 'dayGridMonth',
+  height: 'auto',
+  firstDay: 0,
+  nowIndicator: true,
+  timeZone: 'local',
+  headerToolbar: {
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,timeGridWeek,listWeek'
+  },
+  eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
+  events: (info, success, failure) => {
+    const prep = document.getElementById('prep-toggle').checked ? '1' : '0';
+    const qs = new URLSearchParams({
+      start: info.startStr, end: info.endStr, prep
+    });
+    fetch('/api/calendar/events?' + qs)
+      .then(r => r.json()).then(success).catch(failure);
+  },
+  eventClick: (info) => {
+    const p = info.event.extendedProps;
+    current = p.occurrence;
+    document.getElementById('detail-title').textContent = info.event.title;
+    document.getElementById('detail-body').innerHTML = `
+      <dt>course</dt><dd>${p.course || '—'}</dd>
+      <dt>type</dt><dd>${p.itemType}</dd>
+      <dt>priority</dt><dd>${p.priority}</dd>
+      <dt>state</dt><dd>${p.state}</dd>
+      <dt>remaining</dt><dd>${p.remaining ? p.remaining + 'm' : '—'}</dd>
+      ${p.description ? `<dt>notes</dt><dd>${p.description}</dd>` : ''}
+      ${p.url ? `<dt>link</dt><dd><a href="${p.url}" target="_blank">open</a></dd>` : ''}`;
+    detail.hidden = false;
+  }
+});
+cal.render();
+
+document.getElementById('prep-toggle')
+  .addEventListener('change', () => cal.refetchEvents());
+
+detail.querySelector('.detail__close')
+  .addEventListener('click', () => { detail.hidden = true; });
+
+detail.querySelectorAll('[data-act]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!current) return;
+    const path = btn.dataset.act === 'done' ? 'done' : 'skip';
+    const res = await fetch(`/api/occurrences/${current}/${path}`, {
+      method: 'POST', headers: { 'X-CSRFToken': CSRF }
+    });
+    if (res.ok) { detail.hidden = true; cal.refetchEvents(); }
+  });
+});
+</script>
+{% endblock %}

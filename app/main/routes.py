@@ -45,4 +45,4 @@ def preview():
 @bp.route("/calendar")
 @login_required
 def calendar():
-    return render_template("dashboard.html", data=None, fields=FIELD_NAMES)  # TODO phase 2
+    return render_template("calendar.html", fields=FIELD_NAMES)
